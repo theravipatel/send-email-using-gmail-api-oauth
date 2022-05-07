@@ -68,16 +68,18 @@ function getClient()
         if (!file_exists(dirname($tokenPath))) {
             mkdir(dirname($tokenPath), 0700, true);
         }
-        
+
         $token_arr = $client->getAccessToken();
 
         // Save the refresh token to a file.
-        if(!file_exists("refresh_token.json")){
+        if (!file_exists("refresh_token.json")) {
             $refresh_token = $token_arr['refresh_token'];
             file_put_contents("refresh_token.json", json_encode(array("refresh_token" => $refresh_token)));
-        }else{
+        } else {
             $refresh_token = json_decode(file_get_contents("refresh_token.json"), true);
-            $token_arr["refresh_token"] = $refresh_token["refresh_token"];
+            if (!in_array("refresh_token", $token_arr)) {
+                $token_arr["refresh_token"] = $refresh_token["refresh_token"];
+            }
         }
         file_put_contents($tokenPath, json_encode($token_arr));
     }
