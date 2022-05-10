@@ -100,13 +100,41 @@ $service    = new Google_Service_Gmail($client);
  * @return Google_Service_Gmail_Message
  */
 function createMessage($sender, $recipient, $subject, $messageText) {
+    $boundary = uniqid(rand(), true);
+
     $rawMessageString = "From: ".$sender["name"]." <".$sender["email"].">\r\n";
     $rawMessageString .= "To: ".$recipient["name"]." <".$recipient["email"].">\r\n";
     $rawMessageString .= 'Subject: =?utf-8?B?' . base64_encode($subject) . "?=\r\n";
     $rawMessageString .= "MIME-Version: 1.0\r\n";
-    $rawMessageString .= "Content-Type: text/html; charset=utf-8\r\n";
+    $rawMessageString .= 'Content-type: Multipart/Mixed; boundary="' . $boundary . '"' . "\r\n";
     $rawMessageString .= 'Content-Transfer-Encoding: quoted-printable' . "\r\n\r\n";
     $rawMessageString .= $messageText;
+    
+
+    $files = array("image.jpg","document.pdf");
+    if(count($files)){
+
+        $rawMessageString .= "--{$boundary}\r\n";
+
+        foreach ($files as $filePath) {
+            if($filePath!="" && file_exists($filePath)){
+                $array = explode('/', $filePath);
+                $finfo = finfo_open(FILEINFO_MIME_TYPE); // return mime type ala mimetype extension
+                $mimeType = finfo_file($finfo, $filePath);
+                $fileName = $array[sizeof($array)-1];
+                $fileData = base64_encode(file_get_contents($filePath));
+
+                $rawMessageString .= "\r\n--{$boundary}\r\n";
+                $rawMessageString .= 'Content-Type: '. $mimeType .'; name="'. $fileName .'";' . "\r\n";            
+                $rawMessageString .= 'Content-ID: <' . $sender["email"] . '>' . "\r\n";            
+                $rawMessageString .= 'Content-Description: ' . $fileName . ';' . "\r\n";
+                $rawMessageString .= 'Content-Disposition: attachment; filename="' . $fileName . '"; size=' . filesize($filePath). ';' . "\r\n";
+                $rawMessageString .= 'Content-Transfer-Encoding: base64' . "\r\n\r\n";
+                $rawMessageString .= chunk_split(base64_encode(file_get_contents($filePath)), 76, "\n") . "\r\n";
+                $rawMessageString .= "--{$boundary}\r\n";
+            }
+        }
+    }
 
     $mime = rtrim(strtr(base64_encode($rawMessageString), '+/', '-_'), '=');
     
